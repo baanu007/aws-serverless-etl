@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+*.tfvars
+
+# Lambda
+*.zip
+deployment/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
