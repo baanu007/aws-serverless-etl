@@ -1,0 +1,19 @@
+{
+  "data": [
+    {"id": "TXN-001", "timestamp": "2024-01-15T10:23:45Z", "type": "sale", "amount": 299.99, "currency": "USD", "customer_id": "C1001", "product_id": "P101", "region": "US-TX"},
+    {"id": "TXN-002", "timestamp": "2024-01-15T10:24:12Z", "type": "sale", "amount": 599.99, "currency": "USD", "customer_id": "C1002", "product_id": "P102", "region": "US-TX"},
+    {"id": "TXN-003", "timestamp": "2024-01-15T10:25:33Z", "type": "sale", "amount": 149.97, "currency": "USD", "customer_id": "C1003", "product_id": "P103", "region": "US-CA"},
+    {"id": "TXN-004", "timestamp": "2024-01-15T10:26:45Z", "type": "refund", "amount": -99.99, "currency": "USD", "customer_id": "C1001", "product_id": "P105", "region": "US-TX"},
+    {"id": "TXN-005", "timestamp": "2024-01-15T10:27:18Z", "type": "sale", "amount": 899.99, "currency": "USD", "customer_id": "C1004", "product_id": "P104", "region": "US-NY"},
+    {"id": "TXN-006", "timestamp": "2024-01-15T10:28:55Z", "type": "sale", "amount": 29.99, "currency": "USD", "customer_id": "C1005", "product_id": "P106", "region": "US-FL"},
+    {"id": "TXN-007", "timestamp": "2024-01-15T10:30:22Z", "type": "sale", "amount": 1299.99, "currency": "USD", "customer_id": "C1006", "product_id": "P107", "region": "US-WA"},
+    {"id": "TXN-008", "timestamp": "2024-01-15T10:32:10Z", "type": "sale", "amount": 449.99, "currency": "USD", "customer_id": "C1007", "product_id": "P108", "region": "US-TX"}
+  ],
+  "metadata": {
+    "total_count": 8,
+    "page": 1,
+    "per_page": 100,
+    "has_more": false,
+    "generated_at": "2024-01-15T10:35:00Z"
+  }
+}
