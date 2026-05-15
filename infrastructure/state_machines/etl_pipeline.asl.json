@@ -1,0 +1,166 @@
+{
+  "Comment": "Serverless ETL pipeline: Ingest -> Transform -> DQ -> (PASS: Load + Glue / FAIL: Notify)",
+  "StartAt": "Ingest",
+  "States": {
+    "Ingest": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${IngestFunctionArn}",
+        "Payload.$": "$"
+      },
+      "ResultSelector": {
+        "staging_bucket.$": "$.Payload.results[0].staging_bucket",
+        "staging_key.$": "$.Payload.results[0].staging_key",
+        "valid_records.$": "$.Payload.results[0].valid_records"
+      },
+      "ResultPath": "$.ingest",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "Transform"
+    },
+    "Transform": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${TransformFunctionArn}",
+        "Payload": {
+          "staging_bucket.$": "$.ingest.staging_bucket",
+          "staging_key.$": "$.ingest.staging_key",
+          "dedupe_key": "id"
+        }
+      },
+      "ResultSelector": {
+        "processed_bucket.$": "$.Payload.processed_bucket",
+        "processed_key.$": "$.Payload.processed_key",
+        "output_records.$": "$.Payload.output_records"
+      },
+      "ResultPath": "$.transform",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "DataQuality"
+    },
+    "DataQuality": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${DqFunctionArn}",
+        "Payload": {
+          "processed_bucket.$": "$.transform.processed_bucket",
+          "processed_key.$": "$.transform.processed_key",
+          "config": {
+            "min_rows": 1,
+            "critical_fields": ["id"],
+            "max_null_rate": 0.05
+          }
+        }
+      },
+      "ResultPath": "$.dq",
+      "Next": "DQResult"
+    },
+    "DQResult": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.dq.Payload.status",
+          "StringEquals": "PASS",
+          "Next": "LoadParallel"
+        }
+      ],
+      "Default": "NotifyFailure"
+    },
+    "LoadParallel": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "LoadDynamoDB",
+          "States": {
+            "LoadDynamoDB": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${LoadFunctionArn}",
+                "Payload": {
+                  "processed_bucket.$": "$.transform.processed_bucket",
+                  "processed_key.$": "$.transform.processed_key"
+                }
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "TriggerGlueAnalytics",
+          "States": {
+            "TriggerGlueAnalytics": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke",
+              "Parameters": {
+                "FunctionName": "${GlueTriggerFunctionArn}",
+                "Payload": {
+                  "arguments": {
+                    "--source_bucket.$": "$.transform.processed_bucket",
+                    "--source_key.$": "$.transform.processed_key"
+                  }
+                }
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyFailure"
+        }
+      ],
+      "Next": "Success"
+    },
+    "NotifyFailure": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sns:publish",
+      "Parameters": {
+        "TopicArn": "${FailureTopicArn}",
+        "Subject": "Serverless ETL pipeline failed",
+        "Message.$": "States.JsonToString($)"
+      },
+      "Next": "Failed"
+    },
+    "Success": {
+      "Type": "Succeed"
+    },
+    "Failed": {
+      "Type": "Fail",
+      "Error": "PipelineFailed",
+      "Cause": "See SNS notification for details."
+    }
+  }
+}

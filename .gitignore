@@ -1,18 +1,34 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
+.venv/
 venv/
 .env
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Terraform
+.terraform/
+.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
-.terraform/
+crash.log
+crash.*.log
+# Block all tfvars except the committed examples
 *.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.example.json
+# Backend configs may contain bucket/table names
+*.hcl
+!*.hcl.example
 
-# Lambda
-*.zip
+# Lambda build artifacts
+build/
 deployment/
+*.zip
 
 # IDE
 .idea/
@@ -20,3 +36,4 @@ deployment/
 
 # OS
 .DS_Store
+Thumbs.db

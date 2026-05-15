@@ -1,0 +1,18 @@
+############################################
+# Example tfvars for the `dev` environment.
+#
+# Copy to `terraform.tfvars` and fill in your own globally-unique
+# bucket names. Never commit a real `terraform.tfvars` to git — the
+# top-level `.gitignore` blocks them by default.
+############################################
+
+aws_region   = "us-east-1"
+environment  = "dev"
+project_name = "serverless-etl"
+
+raw_bucket_name       = "REPLACE-ME-serverless-etl-raw-dev"
+processed_bucket_name = "REPLACE-ME-serverless-etl-processed-dev"
+curated_bucket_name   = "REPLACE-ME-serverless-etl-curated-dev"
+
+lambda_artifacts_dir = "../../../build"
+failure_topic_name   = "serverless-etl-failures-dev"

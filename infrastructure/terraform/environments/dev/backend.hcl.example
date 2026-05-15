@@ -1,0 +1,9 @@
+# Example backend config for the `dev` environment.
+# Copy to `backend.hcl` and run:
+#   terraform init -backend-config=environments/dev/backend.hcl
+
+bucket         = "REPLACE-ME-tf-state-bucket"
+key            = "aws-serverless-etl/dev/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "REPLACE-ME-tf-lock-table"
+encrypt        = true

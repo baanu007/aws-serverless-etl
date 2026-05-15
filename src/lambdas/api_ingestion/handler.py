@@ -1,4 +1,4 @@
-"""
+﻿"""
 API Ingestion Lambda
 Fetches data from REST APIs and stores in S3 raw zone
 """
@@ -43,12 +43,12 @@ def fetch_api_data(
 ) -> Dict[str, Any]:
     """
     Fetch data from REST API
-    
+
     Args:
         url: API endpoint URL
         headers: Request headers including auth
         params: Query parameters
-        
+
     Returns:
         API response data
     """
@@ -73,12 +73,12 @@ def upload_to_s3(
 ) -> str:
     """
     Upload data to S3 raw zone with partitioning
-    
+
     Args:
         data: Data to upload
         source_name: Name of the data source
         timestamp: Ingestion timestamp
-        
+
     Returns:
         S3 object key
     """
@@ -90,10 +90,10 @@ def upload_to_s3(
         f"day={timestamp.day:02d}/"
         f"hour={timestamp.hour:02d}/"
     )
-    
+
     filename = f"{source_name}_{timestamp.strftime('%Y%m%d_%H%M%S')}.json"
     object_key = partition_path + filename
-    
+
     # Add metadata
     data_with_metadata = {
         "data": data,
@@ -103,7 +103,7 @@ def upload_to_s3(
             "record_count": len(data) if isinstance(data, list) else 1
         }
     }
-    
+
     try:
         s3_client.put_object(
             Bucket=RAW_BUCKET,
@@ -125,34 +125,34 @@ def upload_to_s3(
 def process_source(source_config: Dict[str, Any], timestamp: datetime) -> Dict[str, Any]:
     """
     Process a single data source
-    
+
     Args:
         source_config: Source configuration
         timestamp: Ingestion timestamp
-        
+
     Returns:
         Processing result
     """
     source_name = source_config['name']
     logger.info(f"Processing source: {source_name}")
-    
+
     # Build headers
     headers = {'Content-Type': 'application/json'}
     if source_config.get('api_key'):
         headers['Authorization'] = f"Bearer {source_config['api_key']}"
-    
+
     # Fetch data
     data = fetch_api_data(
         url=source_config['url'],
         headers=headers,
         params=source_config.get('params')
     )
-    
+
     # Upload to S3
     object_key = upload_to_s3(data, source_name, timestamp)
-    
+
     record_count = len(data) if isinstance(data, list) else 1
-    
+
     return {
         'source': source_name,
         'status': 'success',
@@ -164,29 +164,29 @@ def process_source(source_config: Dict[str, Any], timestamp: datetime) -> Dict[s
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     Lambda handler function
-    
+
     Args:
         event: Lambda event (from EventBridge or manual invocation)
         context: Lambda context
-        
+
     Returns:
         Execution results
     """
     logger.info(f"Starting API ingestion. Event: {json.dumps(event)}")
-    
+
     timestamp = datetime.utcnow()
     results = []
     errors = []
-    
+
     try:
         # Get API configurations
         config = get_api_config()
         sources = config.get('sources', [])
-        
+
         # Filter sources if specific one requested
         if event.get('source_name'):
             sources = [s for s in sources if s['name'] == event['source_name']]
-        
+
         # Process each source
         for source_config in sources:
             try:
@@ -200,7 +200,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
                 errors.append(error)
                 logger.error(f"Failed to process {source_config['name']}: {e}")
-        
+
         # Build response
         response = {
             'statusCode': 200 if not errors else 207,  # Multi-status if partial failure
@@ -213,10 +213,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'errors': errors
             }
         }
-        
+
         logger.info(f"Ingestion complete: {len(results)} success, {len(errors)} failed")
         return response
-        
+
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
         return {
