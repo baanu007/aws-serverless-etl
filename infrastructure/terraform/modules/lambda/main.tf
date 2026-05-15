@@ -51,6 +51,13 @@ resource "aws_iam_role_policy" "this" {
         {
           Effect = "Allow"
           Action = [
+            "logs:CreateLogGroup",
+          ]
+          Resource = "arn:aws:logs:*:*:log-group:/aws/lambda/${var.function_name}*"
+        },
+        {
+          Effect = "Allow"
+          Action = [
             "logs:CreateLogStream",
             "logs:PutLogEvents",
           ]
