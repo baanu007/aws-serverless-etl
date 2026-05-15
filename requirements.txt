@@ -1,5 +1,7 @@
-boto3==1.34.0
-requests==2.31.0
-aws-lambda-powertools==2.30.0
-pyyaml==6.0.1
-pandas==2.1.4
+# Runtime dependencies for the Lambda handlers.
+# Per-function requirements live next to each handler so package_lambdas.sh
+# can build minimal zip artifacts; this file is the union for local dev.
+boto3==1.34.131
+botocore==1.34.131
+aws-lambda-powertools==2.43.1
+requests==2.32.3
