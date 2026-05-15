@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Tuple
 
@@ -85,6 +86,32 @@ def _validate(record: Dict[str, Any]) -> Tuple[bool, str]:
     return True, ""
 
 
+# Match either ``raw/source=<NAME>/...`` or ``raw/<source>/...`` style keys.
+# Examples:
+#   raw/source=alpha/data.json -> "alpha"
+#   raw/orders/sample.json     -> "orders"
+#   raw/foo.json               -> "unknown" (no source segment)
+_HIVE_PARTITION_SOURCE = re.compile(r"(?:^|/)source=([^/]+)/")
+
+
+def _extract_source_name(key: str) -> str:
+    """Best-effort extraction of a logical source name from an S3 key.
+
+    Convention (in priority order):
+        1. Hive-style partition segment ``source=<NAME>`` anywhere in the path.
+        2. ``raw/<source>/<file>`` (or any prefix with depth >= 2) -> second segment.
+        3. Otherwise ``"unknown"``.
+    """
+    match = _HIVE_PARTITION_SOURCE.search(key)
+    if match:
+        return match.group(1)
+    parts = key.split("/")
+    # Need at least <prefix>/<source>/<file> -> 3 segments.
+    if len(parts) >= 3 and parts[1]:
+        return parts[1]
+    return "unknown"
+
+
 def _process_object(bucket: str, key: str) -> Dict[str, Any]:
     LOGGER.info("processing s3://%s/%s", bucket, key)
     raw = _read_object(bucket, key)
@@ -102,7 +129,7 @@ def _process_object(bucket: str, key: str) -> Dict[str, Any]:
     if not STAGING_BUCKET:
         raise RuntimeError("STAGING_BUCKET env var is not configured")
 
-    source_name = key.split("/", 2)[1] if "/" in key else "unknown"
+    source_name = _extract_source_name(key)
     filename = os.path.basename(key).rsplit(".", 1)[0] + ".ndjson"
     out_key = build_partitioned_key(
         prefix=STAGING_PREFIX,
