@@ -61,10 +61,30 @@ def _normalize_record(record: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _dedupe(records: Iterable[Dict[str, Any]], key_field: str) -> List[Dict[str, Any]]:
-    """Keep the last occurrence of each ``key_field`` value."""
+    """Keep the last occurrence of each ``key_field`` value.
+
+    Records missing ``key_field`` are skipped with a warning so they do not
+    collapse together under a shared ``None`` key. A CloudWatch-visible
+    log entry is emitted for each skipped record (counter-friendly).
+    """
     seen: Dict[Any, Dict[str, Any]] = {}
+    skipped = 0
     for rec in records:
-        seen[rec.get(key_field)] = rec
+        key_value = rec.get(key_field)
+        if key_value is None:
+            skipped += 1
+            LOGGER.warning(
+                "dedupe: skipping record without key '%s' (metric=dedupe_missing_key)",
+                key_field,
+            )
+            continue
+        seen[key_value] = rec
+    if skipped:
+        LOGGER.info(
+            "dedupe: skipped %d record(s) missing key '%s' (metric=dedupe_missing_key_total)",
+            skipped,
+            key_field,
+        )
     return list(seen.values())
 
 
