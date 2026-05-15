@@ -1,0 +1,60 @@
+name: Deploy (plan only)
+
+# Manual workflow — never runs on push.
+# It packages the Lambda artifacts, initializes Terraform against the
+# requested environment, and runs `terraform plan`. Apply is left to a
+# human operator after reviewing the plan.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (dev / stage / prod)"
+        required: true
+        default: "dev"
+        type: choice
+        options: [dev, stage, prod]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  plan:
+    name: Package + terraform plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build Lambda artifacts
+        run: |
+          chmod +x package_lambdas.sh
+          ./package_lambdas.sh
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      # NOTE: AWS credentials are NOT wired in this template. To run a
+      # real plan against AWS, configure `aws-actions/configure-aws-credentials`
+      # with an OIDC role here. Leaving it out keeps the workflow safe
+      # to dispatch against an untrusted account.
+      - name: Terraform init (no backend)
+        run: terraform init -backend=false
+        working-directory: infrastructure/terraform
+
+      - name: Terraform validate
+        run: terraform validate
+        working-directory: infrastructure/terraform
+
+      - name: Terraform plan (placeholder vars)
+        run: |
+          cp environments/${{ inputs.environment }}/terraform.tfvars.example terraform.tfvars
+          terraform plan -input=false -no-color || echo "::warning::Plan failed — likely due to placeholder values; wire up real credentials + tfvars to enable."
+        working-directory: infrastructure/terraform
