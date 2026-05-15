@@ -1,15 +1,13 @@
 """Tests for the load Lambda handler.
 
-Moto does not implement `glue:StartJobRun` exhaustively across all
-versions, so the Glue client is patched with a stub. DynamoDB and S3
-interactions use the real moto-backed services.
+The load handler now only writes to DynamoDB; Glue orchestration lives
+in Step Functions and is handled by the separate ``glue_trigger`` Lambda.
 """
 
 from __future__ import annotations
 
 import importlib
 import json
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,17 +16,12 @@ import pytest
 def load_module(monkeypatch, s3_buckets, dynamodb_table):
     monkeypatch.setenv("DDB_TABLE", dynamodb_table.name)
     monkeypatch.setenv("DDB_PRIMARY_KEY", "id")
-    monkeypatch.setenv("GLUE_JOB_NAME", "test-analytics-load")
     import load_handler.handler as handler  # type: ignore
     importlib.reload(handler)
-
-    fake_glue = MagicMock()
-    fake_glue.start_job_run.return_value = {"JobRunId": "jr_123"}
-    monkeypatch.setattr(handler, "_glue", fake_glue)
     return handler
 
 
-def test_handler_writes_dynamodb_and_starts_glue(load_module, s3_buckets, dynamodb_table):
+def test_handler_writes_dynamodb(load_module, s3_buckets, dynamodb_table):
     client = s3_buckets["client"]
     key = "processed/source=orders/dt=2026-05-15/foo.ndjson"
     body = "\n".join(json.dumps({"id": str(i), "amount": i}) for i in range(3))
@@ -40,7 +33,7 @@ def test_handler_writes_dynamodb_and_starts_glue(load_module, s3_buckets, dynamo
 
     assert result["status"] == "OK"
     assert result["dynamodb"]["records_written"] == 3
-    assert result["glue"]["job_run_id"] == "jr_123"
+    assert "glue" not in result
 
     items = dynamodb_table.scan()["Items"]
     assert {item["id"] for item in items} == {"0", "1", "2"}
